@@ -2,10 +2,10 @@ import json
 
 from config_at_once import *
 
-test_group = Group("test_group")
+_test_group = Group("test_group")
 
 
-@test_group.add
+@_test_group.add
 class TestClass:
     default_value = "Default"
 
@@ -16,12 +16,12 @@ def test_group_initialization():
 
 
 def test_add_class_to_group():
-    assert TestClass in test_group.registered
+    assert TestClass in _test_group.registered
 
 
 def test_init_config():
-    test_group.init_config(globals())
-    assert TestClass.default_value == test_group.tree["TestClass"]["default_value"]
+    _test_group.init_config(globals())
+    assert TestClass.default_value == _test_group.tree["TestClass"]["default_value"]
 
 
 def test_remove_unserializable_by_objects():
@@ -32,7 +32,7 @@ def test_remove_unserializable_by_objects():
 
 
 def test_load_config():
-    test_group.tree["TestClass"]["default_value"] = "Modified"
-    json_str = json.dumps(test_group.tree.remove_unserializable_by_objects(json_serializable_objects))
-    test_group.load_config(json.loads(json_str), globals())
+    _test_group.tree["TestClass"]["default_value"] = "Modified"
+    json_str = json.dumps(_test_group.tree.remove_unserializable_by_objects(json_serializable_objects))
+    _test_group.load_config(json.loads(json_str), globals())
     assert TestClass.default_value == "Modified"

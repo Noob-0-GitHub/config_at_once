@@ -6,6 +6,11 @@ _T = TypeVar('_T')
 
 class ConfigTree(dict):
     def __init__(self, __d=None, group=None):
+        """
+        Initialize the ConfigTree.
+        :param __d: Initial dictionary for the ConfigTree.
+        :param group: The group associated with the ConfigTree.
+        """
         super().__init__()
         self.group = group
         if __d is not None:
@@ -13,10 +18,10 @@ class ConfigTree(dict):
 
     def remove_unserializable_by_func(self, check_serializable: Callable, copy: bool = True):
         """
-        Remove unserializable objects by check serializable function
-        :param check_serializable: function used to check serializable, takes one argument: object
-        :param copy: copy or not
-        :return: ConfigTree
+        Remove unserializable objects by check serializable function.
+        :param check_serializable: function used to check serializable, takes one argument: object.
+        :param copy: copy or not.
+        :return: ConfigTree.
         """
         if copy:
             tree = self.copy()
@@ -33,11 +38,11 @@ class ConfigTree(dict):
     def remove_unserializable_by_objects(self, serializable_objects: Iterable[type] = (object,),
                                          unserializable_objects: Iterable[type] = None, copy: bool = True):
         """
-        Remove unserializable objects
-        :param serializable_objects: serializable objects
-        :param unserializable_objects: objects not serializable
-        :param copy: copy or not
-        :return: ConfigTree
+        Remove unserializable objects.
+        :param serializable_objects: serializable objects.
+        :param unserializable_objects: objects not serializable.
+        :param copy: copy or not.
+        :return: ConfigTree.
         """
         if not isinstance(serializable_objects, tuple):
             serializable_objects = tuple(serializable_objects)
@@ -59,9 +64,9 @@ class ConfigTree(dict):
 
     def copy(self, group=None):
         """
-        Copy the tree, but do not copy the elements
-        :param group: group of copied ConfigTree
-        :return: ConfigTree
+        Create a copy of the current ConfigTree, but will not copy the elements.
+        :param group: Group of copied ConfigTree.
+        :return: A new ConfigTree instance.
         """
         return self.__class__({k: v.copy() if isinstance(v, ConfigTree) else v for k, v in self.items()}, group=group)
 
@@ -76,6 +81,10 @@ class SCAN:
 
 class Group:
     def __init__(self, name):
+        """
+        Initialize the Group with a name.
+        :param name: Name of the group.
+        """
         super().__init__()
         self.name = name
         self.registered: set = set()
@@ -83,10 +92,10 @@ class Group:
 
     def init_config(self, root: dict, mode: (TREE, SCAN) = TREE) -> (ConfigTree, None):
         """
-        Initialize config
-        :param root: root of config, usually be globals() or __dict__
-        :param mode: TREE or SCAN
-        :return: ConfigTree or None
+        Initialize config.
+        :param root: root of config, usually be globals() or __dict__.
+        :param mode: TREE or SCAN.
+        :return: ConfigTree or None.
         """
         self.tree = ConfigTree(group=self)
         if root is None:
@@ -103,6 +112,12 @@ class Group:
             raise ValueError(f"unknown mode: {mode}")
 
     def build_local_tree(self, cls: type, check_config: bool = True) -> (ConfigTree, None):
+        """
+        Build local tree.
+        :param cls:
+        :param check_config:
+        :return: ConfigTree or None.
+        """
         if check_config:
             if not getattr(cls, "__config__", False) or not self.is_element_of_group(cls):
                 return None
@@ -123,11 +138,11 @@ class Group:
 
     def load_config(self, config_dict: dict, root: dict, mode: (TREE, SCAN) = TREE) -> (ConfigTree, None):
         """
-        Load config from dict
-        :param config_dict: config dict
-        :param root: config root, usually be globals() or __dict__
-        :param mode: TREE or SCAN
-        :return: ConfigTree or None
+        Load config from dict.
+        :param config_dict: config dict.
+        :param root: config root, usually be globals() or __dict__.
+        :param mode: TREE or SCAN.
+        :return: ConfigTree or None.
         """
         if mode == TREE:
             self.tree = self.rebuild_tree(config_dict)
@@ -146,6 +161,11 @@ class Group:
             raise ValueError(f"unknown mode: {mode}")
 
     def rebuild_tree(self, config_dict: dict) -> ConfigTree:
+        """
+        Rebuild the ConfigTree from a dictionary.
+        :param config_dict: Dictionary from which the ConfigTree needs to be rebuilt.
+        :return: A new ConfigTree instance.
+        """
         tree = ConfigTree(group=self)
         for k, v in config_dict.items():
             if isinstance(v, dict):
@@ -154,6 +174,11 @@ class Group:
         return tree
 
     def config_tree_local_apply(self, tree: ConfigTree, root: object):
+        """
+        Locally apply the given ConfigTree to the root object.
+        :param tree: The ConfigTree to apply.
+        :param root: The root object to which the ConfigTree is applied.
+        """
         for attr_name, attr_value in tree.items():
             if isinstance(attr_value, ConfigTree):
                 self.config_tree_local_apply(attr_value, eval(f"root.{attr_name}", dict(root=root)))
@@ -163,17 +188,29 @@ class Group:
             exec(f"root.{attr_name} = attr_value", dict(root=root, attr_value=attr_value))
 
     def is_element_of_group(self, cls: type, default=None):
+        """
+        Check if the given class is an element of the group.
+        :param cls: The class to check.
+        :param default: Default return value if "__config_group__" attribute doesn't exist, usually None or group.
+        :return: True if the class is an element of the group, False otherwise.
+        """
         return getattr(cls, "__config_group__", default) == self
 
     @staticmethod
     def attr_exclude(attr_name: str):
+        """
+        Check if the attribute should be excluded based on its name,
+        you can override this method to exclude some attributes.
+        :param attr_name: Name of the attribute to check.
+        :return: True if the attribute should be excluded, False otherwise.
+        """
         return attr_name.startswith("_")
 
     def add(self, cls: Type[_T]) -> _T:
         """
-        Add a class to the group
-        :param cls: class need to be configured
-        :return: cls: same class as input
+        Add a class to the group.
+        :param cls: class need to be configured.
+        :return: cls: same class as input.
         """
         if not isinstance(cls, type):
             raise TypeError(f"cls must be a class, not {type(cls)}")
@@ -195,8 +232,8 @@ class Group:
 
     def __call__(self, cls: Type[_T]) -> _T:
         """
-        :param cls: class need to be configured
-        :return: cls: same class as input
+        :param cls: class need to be configured.
+        :return: cls: same class as input.
         """
         print(globals().keys())
         return self.add(cls)

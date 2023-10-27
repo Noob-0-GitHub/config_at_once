@@ -12,6 +12,7 @@ class Test:
         default_value1_of_sub = "TestSub"
 
     default_value1 = "Test"
+    unserializable_object = object()
 
 
 group_test.init_config(globals())

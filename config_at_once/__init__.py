@@ -5,6 +5,18 @@ _T = TypeVar('_T')
 
 
 class ConfigTree(dict):
+    """
+    Represents a configuration tree derived from the dictionary class.
+
+    This tree structure aids in managing configuration parameters, providing functionality
+    to manipulate, serialize, and deserialize configurations. The class offers methods
+    to remove unserializable objects, making it easy to convert the configuration into
+    formats such as JSON, INI, XML, or YAML.
+
+    Attributes:
+        group: An optional attribute representing the group associated with this ConfigTree.
+    """
+
     def __init__(self, __d=None, group=None):
         """
         Initialize the ConfigTree.
@@ -72,14 +84,28 @@ class ConfigTree(dict):
 
 
 class TREE:
+    """A mode for config"""
     pass
 
 
 class SCAN:
+    """A mode for config"""
     pass
 
 
 class Group:
+    """
+    Represents a group of configurations, aiding in the organization and management of related configurations.
+
+    The Group class allows for the addition of classes to groups, making it easier to initialize
+    configurations and apply them en masse. It interacts with the ConfigTree to provide
+    serialization and deserialization of group configurations.
+
+    Attributes:
+        name: A string representing the name of the group.
+        tree: A ConfigTree object that holds the configurations of the group.
+        registered: A set that keeps track of the classes added to this group.
+    """
     def __init__(self, name):
         """
         Initialize the Group with a name.

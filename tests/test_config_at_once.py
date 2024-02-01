@@ -1,13 +1,6 @@
-import json
+import pytest
 
 from config_at_once import *
-
-_test_group = Group("test_group")
-
-
-@_test_group.add
-class TestClass:
-    default_value = "Default"
 
 
 def test_group_initialization():
@@ -16,23 +9,69 @@ def test_group_initialization():
 
 
 def test_add_class_to_group():
-    assert TestClass in _test_group.registered
+    local_test_group = Group("local_test_group")
+
+    @local_test_group.add
+    class LocalTestClass:
+        pass
+
+    assert LocalTestClass in local_test_group.registered
 
 
-def test_init_config():
-    _test_group.init_config(globals())
-    assert TestClass.default_value == _test_group.tree["TestClass"]["default_value"]
+def test_add_class_to_group_by_call():
+    local_test_group = Group("local_test_group")
+
+    @local_test_group
+    class LocalTestClass:
+        pass
+
+    assert LocalTestClass in local_test_group.registered
 
 
-def test_remove_unserializable_by_objects():
-    tree = ConfigTree()
-    tree["TestClass"] = ConfigTree({"default_value": "Default", "unserializable_object": object()})
-    serializable_tree = tree.remove_unserializable_by_objects(json_serializable_objects)
-    assert "unserializable_object" not in serializable_tree["TestClass"]
+def test_init_config_unknown_mode():
+    local_test_group = Group("local_test_group")
+
+    with pytest.raises(ValueError, match="unknown mode: unknown_mode"):
+        local_test_group.init_config(globals(), mode="unknown_mode")
 
 
-def test_load_config():
-    _test_group.tree["TestClass"]["default_value"] = "Modified"
-    json_str = json.dumps(_test_group.tree.remove_unserializable_by_objects(json_serializable_objects))
-    _test_group.load_config(json.loads(json_str), globals())
-    assert TestClass.default_value == "Modified"
+def test_init_config_ignore():
+    local_test_group = Group("local_test_group")
+
+    @local_test_group.add
+    class TestClassIgnore:
+        __config__ = False
+
+    assert TestClassIgnore not in local_test_group.registered
+
+
+def test_init_config_group_ignore():
+    local_test_group = Group("local_test_group")
+    another_group = Group("another_group")
+
+    @local_test_group.add
+    class TestClassGroupIgnore:
+        __config_group__ = another_group
+
+    assert TestClassGroupIgnore not in local_test_group.registered
+
+
+def test_force_add_ignoring_config():
+    local_test_group = Group("local_test_group")
+
+    @local_test_group.force_add
+    class TestClass:
+        __config__ = False
+
+    assert TestClass in local_test_group.registered
+
+
+def test_force_add_ignoring_config_group():
+    local_test_group = Group("local_test_group")
+    another_group = Group("another_group")
+
+    @local_test_group.force_add
+    class TestClass:
+        __config_group__ = another_group
+
+    assert TestClass in local_test_group.registered

@@ -28,10 +28,16 @@ class ConfigTree(dict):
         if __d is not None:
             self.update(__d)
 
-    def remove_unserializable_by_func(self, check_serializable: Callable, copy: bool = True):
+    def remove_by_func(self, check_remove: Callable, name: bool = True, value: bool = True,
+                       copy: bool = True):
         """
-        Remove unserializable objects by check serializable function.
-        :param check_serializable: function used to check serializable, takes one argument: object.
+        Remove objects by check serializable function.
+        :param check_remove: a function used to check if the object should be removed, return bool, if return True, remove.
+        :param name: args of check_serializable contains attr_name or not. If True, call check_serializable(attr_name).
+        :param value: args of check_serializable contains attr_value or not.
+        If value is True, call check_serializable(attr_value).
+        If name is also True, call check_serializable(attr_name, attr_value).
+        When both name and value are False, raise ValueError.
         :param copy: copy or not.
         :return: ConfigTree.
         """
@@ -39,29 +45,38 @@ class ConfigTree(dict):
             tree = self.copy()
         else:
             tree = self
+        if name is value is False:
+            raise ValueError("both name and value cannot be False")
 
         for k, v in dict.copy(tree).items():
             if isinstance(v, ConfigTree):
-                v.remove_unserializable_by_func(check_serializable, copy=False)
-            if not check_serializable(v):
-                tree.pop(k)
+                v.remove_by_func(check_remove, name=name, value=value, copy=False)
+            if name is value is True:
+                if check_remove(k, v):
+                    tree.pop(k)
+            elif name:
+                if check_remove(k):
+                    tree.pop(k)
+            elif value:
+                if check_remove(v):
+                    tree.pop(k)
         return tree
 
-    def remove_unserializable_by_objects(self, serializable_objects: Iterable[type] = (object,),
-                                         unserializable_objects: Iterable[type] = None, copy: bool = True):
+    def remove_by_objects(self, allowed_objects: Iterable[type] = (object,),
+                          ignored_objects: Iterable[type] = None, copy: bool = True):
         """
-        Remove unserializable objects.
-        :param serializable_objects: serializable objects.
-        :param unserializable_objects: objects not serializable.
+        Remove objects.
+        :param allowed_objects: serializable objects.
+        :param ignored_objects: objects not serializable.
         :param copy: copy or not.
         :return: ConfigTree.
         """
-        if not isinstance(serializable_objects, tuple):
-            serializable_objects = tuple(serializable_objects)
-        if unserializable_objects is None:
-            unserializable_objects = tuple()
+        if not isinstance(allowed_objects, tuple):
+            allowed_objects = tuple(allowed_objects)
+        if ignored_objects is None:
+            ignored_objects = tuple()
         else:
-            unserializable_objects = tuple(unserializable_objects)
+            ignored_objects = tuple(ignored_objects)
         if copy:
             tree = self.copy()
         else:
@@ -69,8 +84,8 @@ class ConfigTree(dict):
 
         for k, v in dict.copy(tree).items():
             if isinstance(v, ConfigTree):
-                v.remove_unserializable_by_objects(serializable_objects, copy=False)
-            elif not isinstance(v, serializable_objects) or isinstance(v, unserializable_objects):
+                v.remove_by_objects(allowed_objects, copy=False)
+            elif not isinstance(v, allowed_objects) or isinstance(v, ignored_objects):
                 tree.pop(k)
         return tree
 
@@ -106,6 +121,8 @@ class Group:
         tree: A ConfigTree object that holds the configurations of the group.
         registered: A set that keeps track of the classes added to this group.
     """
+    WARNING = True
+
     def __init__(self, name):
         """
         Initialize the Group with a name.
@@ -124,11 +141,9 @@ class Group:
         :return: ConfigTree or None.
         """
         self.tree = ConfigTree(group=self)
-        if root is None:
-            root = globals()
         if mode == TREE:
             for attr_name, value in root.items():
-                if getattr(value, "__config__", False) and getattr(attr_name, "__config_group__", self) == self:
+                if getattr(value, "__config__", False) and getattr(value, "__config_group__", self) == self:
                     root[attr_name].__config_path__ = f"{self.name}.{attr_name}"
                     self.tree[attr_name] = self.build_local_tree(value, root[attr_name].__config_path__)
             return self.tree
@@ -174,13 +189,12 @@ class Group:
             self.tree = self.rebuild_tree(config_dict)
             for attr_name, attr_value in self.tree.items():
                 if attr_name not in root:
-                    warnings.warn(f"{attr_name} not in {root}", RuntimeWarning)
+                    warnings.warn(f"{attr_name} no found in {root}", RuntimeWarning)
                     root[attr_name] = attr_value
                 if isinstance(attr_value, ConfigTree):
                     self.config_tree_local_apply(attr_value, root[attr_name])
                 else:
                     root[attr_name] = attr_value
-            # self.config_tree_local_apply(self.tree, root_path)
         elif mode == SCAN:
             pass
         else:
@@ -246,13 +260,35 @@ class Group:
             return cls
         if not hasattr(cls, "__config_group__"):
             cls.__config_group__ = self
+        elif cls.__config_group__ != self:
+            warnings.warn(f"the class {cls} won't be added to {self}, "
+                          f"because cls.__config_group__ = {cls.__config_group__} != {self}", RuntimeWarning)
+            return cls
         if not hasattr(cls, "__config_path__"):
             cls.__config_path__ = None
         if not hasattr(cls, "__config_include__"):
             cls.__config_only_include__ = dir(cls)
         if not hasattr(cls, "__config_exclude__"):
             cls.__config_exclude__ = list()
+        self.registered.add(cls)
+        return cls
+
+    def force_add(self, cls: Type[_T]) -> _T:
+        """
+        Add a class to the group ignoring the "__config__" and "__config_group__".
+        :param cls: class need to be forcibly configured.
+        :return: cls: same class as input.
+        """
+        if not isinstance(cls, type):
+            raise TypeError(f"cls must be a class, not {type(cls)}")
+        cls.__config__ = True
         cls.__config_group__ = self
+        if not hasattr(cls, "__config_path__"):
+            cls.__config_path__ = None
+        if not hasattr(cls, "__config_include__"):
+            cls.__config_only_include__ = dir(cls)
+        if not hasattr(cls, "__config_exclude__"):
+            cls.__config_exclude__ = list()
         self.registered.add(cls)
         return cls
 
@@ -261,7 +297,6 @@ class Group:
         :param cls: class need to be configured.
         :return: cls: same class as input.
         """
-        print(globals().keys())
         return self.add(cls)
 
 

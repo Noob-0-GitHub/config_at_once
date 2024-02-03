@@ -1,7 +1,7 @@
 # noinspection PyUnresolvedReferences
 import warnings
 # noinspection PyUnresolvedReferences
-from typing import Callable, Iterable, TypeVar, Type
+from typing import TypeVar, Type, Callable, Iterable, Any
 
 T = TypeVar('T')
 

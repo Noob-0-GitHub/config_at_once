@@ -25,6 +25,26 @@ class ConfigTree(dict):
         if __d is not None:
             self.update(__d)
 
+    @staticmethod
+    def config_path_join(*paths) -> str:
+        return ".".join(paths)
+
+    @staticmethod
+    def config_path_split(path: str) -> list[str]:
+        return path.split(".")
+
+    def path_index(self, path):
+        nodes = ConfigTree.config_path_split(path)
+        if nodes[0] == self:
+            if len(nodes) == 1:
+                return self
+            else:
+                if not hasattr(nodes[0], "path_index"):
+                    raise ValueError(f"{nodes[0]} is not a ConfigTree")
+                return self[nodes[0]].path_index(nodes[1:])
+        else:
+            raise ValueError(f"path {path} no found")
+
     def remove_by_func(self, check_remove: Callable, name: bool = True, value: bool = True,
                        copy: bool = True):
         """

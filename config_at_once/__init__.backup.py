@@ -250,10 +250,10 @@ class Group:
         """
         Add a class to the group.
         :param cls: class need to be configured.
-        :return: cls: same class as input.
+        :return: _cls: same class as input.
         """
         if not isinstance(cls, type):
-            raise TypeError(f"cls must be a class, not {type(cls)}")
+            raise TypeError(f"_cls must be a class, not {type(cls)}")
         if not hasattr(cls, "__config__"):
             cls.__config__ = True
         if getattr(cls, "__config__", False) is False:
@@ -262,7 +262,7 @@ class Group:
             cls.__config_group__ = self
         elif cls.__config_group__ != self:
             warnings.warn(f"the class {cls} won't be added to {self}, "
-                          f"because cls.__config_group__ = {cls.__config_group__} != {self}", RuntimeWarning)
+                          f"because _cls.__config_group__ = {cls.__config_group__} != {self}", RuntimeWarning)
             return cls
         if not hasattr(cls, "__config_path__"):
             cls.__config_path__ = None
@@ -277,10 +277,10 @@ class Group:
         """
         Add a class to the group ignoring the "__config__" and "__config_group__".
         :param cls: class need to be forcibly configured.
-        :return: cls: same class as input.
+        :return: _cls: same class as input.
         """
         if not isinstance(cls, type):
-            raise TypeError(f"cls must be a class, not {type(cls)}")
+            raise TypeError(f"_cls must be a class, not {type(cls)}")
         cls.__config__ = True
         cls.__config_group__ = self
         if not hasattr(cls, "__config_path__"):
@@ -295,7 +295,7 @@ class Group:
     def __call__(self, cls: Type[_T]) -> _T:
         """
         :param cls: class need to be configured.
-        :return: cls: same class as input.
+        :return: _cls: same class as input.
         """
         return self.add(cls)
 
